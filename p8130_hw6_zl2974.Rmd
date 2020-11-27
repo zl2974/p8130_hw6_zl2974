@@ -1,0 +1,125 @@
+---
+title: "Homework 6"
+author: "Jeffrey Liang"
+date: "11/27/2020"
+output: 
+  pdf_document:
+    latex_engine : "xelatex"
+---
+
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(readxl)
+library(patchwork)
+knitr::opts_chunk$set(
+  fig.height = 6,
+  fig.width = 8,
+  message = F,
+  echo = F,
+  warning = F
+)
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis",
+  digits = 3
+)
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+```
+
+```{r load_data,cache = T}
+pat_sat =
+  read_csv(here::here("data/PatSatisfaction.csv")) %>% 
+  janitor::clean_names() %>% 
+  select(satisfaction = safisfaction,everything())
+
+estradl =
+  read_csv(here::here("data/ESTRADL.csv")) %>% 
+  janitor::clean_names()
+```
+
+
+# Problem 1(15p)
+
+A hospital administrator wishes to test the relationship between ‘patient’s satisfactionscore’ (Y) and three potential predictors:‘age’, ‘severity of illness’, and ‘anxiety level’ (see dataset‘PatSatisfaction.csv’). The administrator randomly selected 46 patients, collected the data, and asked for your help with the analysis.
+
+1. Create a correlation matrixfor all variablesand interpret your findings. Focus onthe correlationvalues between each predictor and the outcomeof interest. (2p)
+
+```{r}
+pat_sat %>% 
+  pivot_longer(
+    cols = -satisfaction,
+    names_to = "predictors",
+    values_to = "values"
+  ) %>% 
+  ggplot(aes(x = values, y = satisfaction, color = predictors)) +
+  geom_point(alpha = 0.5) +
+  stat_smooth(method = "lm")+
+  facet_wrap(vars(predictors),scales = "free_x",nrow = 2) +
+  labs(title = "Very lovely scatter plot")
+```
+
+
+2. Fit a multiple regression model including all three predictorsand test whether at least one of these variables is significant. State the hypotheses, test-statistic, decision rule and conclusion. (3p)
+
+```{r sat_model}
+pat_sat_mmd =
+  lm(satisfaction ~ .,data = pat_sat)
+
+pat_sat_nullmd =
+  lm(satisfaction ~ 1,data = pat_sat)
+```
+\ To test if at least one of these model is significant, we propose hypothesis:  
+$H_0~:~\beta_1=\beta_2=\beta_3 = 0$ 
+
+$H_1$ : at least one of the coefficient not equal to 0
+
+The model we fit is:
+$$statisfaction=`r str_c(pat_sat_mmd$coefficients %>% round(2),c("",pat_sat_mmd$terms %>% attr("term.labels")),sep=" ") %>% paste(collapse = "")`$$
+
+We campared with the model with only intercept, and with ANOVA, we have
+
+$$F^* = \frac{MSR(0|X1X2X3)}{MSE(X1X2X3)} \sim F_{df_L - df_S,df_L}$$
+```{r sat_anova}
+anova(pat_sat_nullmd,pat_sat_mmd)
+```
+\ With F statistics of 30, at 95% confidence level, we have critical value of `r `,
+we reject the null hypothesis and conclude that at least one predictor have coefficent
+ not equal to zero.
+
+3. Show the regression results for all estimated slope coefficients with 95% CIs. Interpret the coefficient and 95% CI associated with ‘severity of illness’. (5p)
+```{r sat_ci}
+tibble(
+  broom::tidy(pat_sat_mmd),
+  broom::confint_tidy(pat_sat_mmd)
+) %>% 
+  select(term,starts_with("conf")) %>% 
+  knitr::kable()
+```
+
+4. Obtain an interval estimate for a new patient’s satisfaction with the following characteristics:Age=35, Severity=42, Anxiety=2.1. Interpret the interval. (2p)
+
+5. 
+    a) Test whether ‘anxiety level’ can be dropped from the regression model, given the other two covariates are retained. State the hypotheses, test-statistic, decision rule and conclusion. (1.5p)
+
+    b) How areR2/R2-adjusted impacted by the action that youtook in part 5-a)? (1.5p)
+
+# Problem 2(15p)
+
+Obesity is very common in American society and is a risk factor for breast cancer in postmenopausal women.One mechanism explaining why obesity is a risk factor is that it may raise estrogen levels in women. Inparticular, one biomarker of estrogen, serum estradiol, is a strong risk factor for breast cancer. To better assessthese relationships, researchers studied a group of 210 premenopausalwomenand recorded the followinginformation(‘Estradl.csv’):
+
+- Estradiol hormonalserumlevels(Estradl);
+- BMI = weight (kg)/height2(m2); measure of overall adiposity(used to indicate obesity, e.g., BMI>30; note that for this analysis we will use thecontinuous measurements);
+- Ethnicity (Ethnic= 1 if African American, = 0 if Caucasian)- Age (Entage);
+- Number of children (Numchild);
+- Age at menarche (Agemenar= age when menstrual periods began).
+
+1. Is there a crude associationbetween BMI and serum estradiol?a)Generate a scatter plotwith the overlaid regression line. Comment.(2.5p)b)Provide the summary regression output and comment on thenature of therelationship (i.e., sign, magnitude, significance).(2.5p)
+
+2. How does the relationshipbetween BMI and serum estradiol change after controlling for all the other risk factorslisted above? Provide the summary regression output and comment on the relationships observedfor each of the predictors.(5p)
+3. Now focus onlythe relationshipbetween BMI and serum estradiolby ethnicity. Isthere any evidence that these relationships vary for African American and Caucasian women? 
+    
+    a) Use graphicaldisplays and numerical summaries to sustain your conclusion.(2.5p)
+    b) Based on your response in part 3-a), takeadditional steps to quantify the relationship between BMI and serum estradiol by ethnicity. Comment on your findings.(2.5p)
