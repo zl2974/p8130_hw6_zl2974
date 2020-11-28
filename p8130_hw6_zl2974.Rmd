@@ -265,4 +265,20 @@ estradl %>%
     broom::tidy() %>% 
     knitr::kable()
 ```
-    
+
+\ We've seen that Ethnic plays a role in predicting Estradol, and through the fig 
+we learn there's intercetion of two smooth line of different ethnics as an 
+indicator of interaction. So we fitted a model with interaction.
+
+```{r interaction}
+est_md_int=
+  estradl %>%
+  lm(estradl ~ bmi * ethnic, data = .)
+
+est_md_int %>% 
+  broom::tidy() %>% 
+  knitr::kable()
+
+anova(est_md_sim,est_md_int)
+```
+  
