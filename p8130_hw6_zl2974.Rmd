@@ -83,6 +83,10 @@ $$statisfaction=`r str_c(pat_sat_mmd$coefficients %>% round(2),c("",pat_sat_mmd$
 We campared with the model with only intercept, and with ANOVA, we have
 
 $$F^* = \frac{MSR(0|X1X2X3)}{MSE(X1X2X3)} \sim F_{df_L - df_S,df_L}$$
+
+$Reject ~ H_0 ~ if ~ F>F_{df_L - df_S,df_L,1-\alpha}$
+
+$Fail ~ reject ~ H_0 ~ if ~F<F_{df_L - df_S,df_L,1-\alpha}$
 ```{r sat_anova}
 anova(pat_sat_nullmd,pat_sat_mmd)
 ```
@@ -127,6 +131,10 @@ $H_0~:~\beta_{anxiety} = 0$
 $H_1~:~\beta_{anxiety} \ne 0$
 
 $$F^* = \frac{MSR(X3|X1X2)}{MSE(X1X2X3)} \sim F_{df_L - df_S,df_L}$$
+
+$Reject ~ H_0 ~ if ~ F>F_{df_L - df_S,df_L,1-\alpha}$
+
+$Fail ~ reject ~ H_0 ~ if ~F<F_{df_L - df_S,df_L,1-\alpha}$
 ```{r}
 pat_sat_noanx =
   lm(satisfaction ~ .-anxiety,data = pat_sat)
@@ -230,6 +238,22 @@ est_md_all %>%
     
     a) Use graphical displays and numerical summaries to sustain your conclusion.(2.5p)
     
+\ On the first look of fig, we see that the regression line of estradol and bmi 
+different trend by ethnic groups. We hypothesis that there's difference in 
+ relationship between BMI and serum estradiol by ethnicity.
+ 
+\ Then we test this hypothesis with ANOVA.
+
+$H_0~:~\beta_{ethnic} = 0$
+
+$H_1~:~\beta_{ethnic} \ne 0$
+
+$$F^* = \frac{MSR(X2|X1)}{MSE(X1X2)} \sim F_{df_L - df_S,df_L}$$
+
+$Reject ~ H_0 ~ if ~ F>F_{df_L - df_S,df_L,1-\alpha}$
+
+$Fail ~ reject ~ H_0 ~ if ~F<F_{df_L - df_S,df_L,1-\alpha}$
+    
 ```{r}
 estradl %>% 
   ggplot(aes(x = bmi, y = estradl, color = ethnic))+
@@ -242,33 +266,16 @@ est_md_eth =
 
 anova(est_md_sim,est_md_eth)
 ```
-    
-    b) Based on your response in part 3-a), take additional steps to quantify the relationship between BMI and serum estradiol by ethnicity. Comment on your findings.(2.5p)
-```{r}
-estradl %>% 
-  nest(-ethnic) %>% 
-  mutate(model = map(.x = data,
-                     ~lm(estradl~bmi,data = .x)),
-         result1 = map(model,broom::tidy),
-         result2 = map(model,broom::confint_tidy)) %>% 
-  select(-model,-data) %>% 
-  unnest() %>% 
-  janitor::clean_names() %>% 
-  select(ethnic:estimate,p_value:conf_high) %>% 
-  knitr::kable()
-  
-cat("Model filterred possible outlier")
-estradl %>% 
-    filter(ethnic == "Caucasian",
-           estradl<150) %>% 
-    lm(estradl~bmi,data = .) %>% 
-    broom::tidy() %>% 
-    knitr::kable()
-```
+\ At 95% confidence level, because the F statistics of 
+`r anova(est_md_sim,est_md_eth) %>% broom::tidy() %>% drop_na() %>% pull(statistic)` 
+is greater than the critical value of `r qf(0.95,1,207)`, we reject the null 
+hypothesis and conclude that the coefficient of ethnic is not equal to 0.
 
-\ We've seen that Ethnic plays a role in predicting Estradol, and through the fig 
-we learn there's intercetion of two smooth line of different ethnics as an 
-indicator of interaction. So we fitted a model with interaction.
+    b) Based on your response in part 3-a), take additional steps to quantify the relationship between BMI and serum estradiol by ethnicity. Comment on your findings.(2.5p)
+    
+\ Also from the fig, we saw that the regression line is crossing at some point in 
+the range of BMI, we hypothesis that there the BMI might have interaction with 
+ethnic groups.
 
 ```{r interaction}
 est_md_int=
@@ -279,6 +286,63 @@ est_md_int %>%
   broom::tidy() %>% 
   knitr::kable()
 
-anova(est_md_sim,est_md_int)
+#anova(est_md_sim,est_md_int)
 ```
-  
+
+\ The interaction term in the model is statistically significant, so we need to 
+include the interaction into the model, to interpret the true asssociation of 
+BMI and estradol by ethnic group, we proform stratified analysis on ethnic groups.
+
+
+```{r stratified}
+stratum =
+  estradl %>%
+  nest(-ethnic) %>%
+  mutate(
+    model = map(.x = data,
+                ~ lm(estradl ~ bmi, data = .x)),
+    result1 = map(model, broom::tidy),
+    result2 = map(model, broom::confint_tidy)
+  ) %>%
+  select(-model, -data) %>%
+  unnest() %>%
+  janitor::clean_names() %>%
+  select(ethnic:estimate, p_value:conf_high)
+
+stratum %>%
+  knitr::kable()
+
+ethnic = estradl %>% distinct(ethnic) %>% as.vector()
+```
+
+```{r comment2, results="asis"}
+stratum %>%
+  filter(term == "bmi") %>%
+  mutate(
+    across(where(is.numeric), ~round(.x,3)),
+    comment = str_c(
+      "For ",
+      ethnic,
+      " group, the mean of change in estradol per unit bmi is ",
+      estimate ,
+      " with a p.value of ",
+      p_value
+    )
+  ) %>%
+  pull(comment) %>%
+  paste(collapse = "; \newline ") %>%
+  first()
+```
+
+
+
+
+```{r outlier, eval = F}
+cat("Model filterred possible outlier")
+estradl %>% 
+    filter(ethnic == "Caucasian",
+           estradl<150) %>% 
+    lm(estradl~bmi,data = .) %>% 
+    broom::tidy() %>% 
+    knitr::kable()
+```
