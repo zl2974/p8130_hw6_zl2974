@@ -48,21 +48,22 @@ estradl =
 
 A hospital administrator wishes to test the relationship between ‘patient’s satisfactionscore’ (Y) and three potential predictors:‘age’, ‘severity of illness’, and ‘anxiety level’ (see dataset‘PatSatisfaction.csv’). The administrator randomly selected 46 patients, collected the data, and asked for your help with the analysis.
 
-1. Create a correlation matrixfor all variablesand interpret your findings. Focus onthe correlationvalues between each predictor and the outcomeof interest. (2p)
+1. Create a correlation matrix for all variables and interpret your findings. Focus on the correlation values between each predictor and the out come of interest. (2p)
 
 ```{r}
 pat_sat %>% 
   cor() %>% 
   corrplot::corrplot(
     method = "square",
-    type = "upper",
+    type = "full",
     addCoef.col = "black", 
-    diag = FALSE
+    diag = T
   )
 ```
 
+Satisfaction is negative correlated with all other variable, and other variables are postively correlated with each others.
 
-2. Fit a multiple regression model including all three predictorsand test whether at least one of these variables is significant. State the hypotheses, test-statistic, decision rule and conclusion. (3p)
+2. Fit a multiple regression model including all three predictors and test whether at least one of these variables is significant. State the hypotheses, test-statistic, decision rule and conclusion. (3p)
 
 ```{r sat_model}
 pat_sat_mmd =
@@ -106,7 +107,7 @@ tibble(
 ```
 \ The CI for coefficient of disease severity is (
 `r broom::confint_tidy(pat_sat_mmd) %>% slice(3) %>% round(2)`),
-we interpret as: the mean 
+we interpret as: at 95% confidence level, the mean 
 change of satisfaction give all the same except for disease severity per unit is 
 somewhere within this interval, and 0 is included.
 
@@ -119,7 +120,10 @@ somewhere within this interval, and 0 is included.
         interval = "prediction") %>% 
         as_tibble() %>% 
         select(lwr,upr) %>% 
-        round(2)`)
+        round(2)`)，
+we interpret as: at 95% confidence level the 
+true estimate of satisfaction for Age=35, Severity=42, Anxiety=2.1 is 
+somewhere within this interval.
 
 5. 
     a) Test whether ‘anxiety level’ can be dropped from the regression model, given the other two covariates are retained. State the hypotheses, test-statistic, decision rule and conclusion. (1.5p)
@@ -177,6 +181,9 @@ Obesity is very common in American society and is a risk factor for breast cance
 
     a) Generate a scatter plot with the overlaid regression line. Comment.(2.5p)
     
+\ Looking at the fig below, we saw that the regression line is a line almost 
+parallel to the x-axis, and there's some potential outliers.
+
 ```{r}
 estradl %>% 
   ggplot(aes(y = estradl, x = bmi))+
@@ -184,7 +191,9 @@ estradl %>%
   stat_smooth(method = "lm")
 ```
     
-    b)    Provide the summary regression output and comment on the nature of the relationship (i.e., sign, magnitude, significance).(2.5p)
+    b)    Provide the summary regression output and comment on 
+    
+    the nature of the relationship (i.e., sign, magnitude, significance).(2.5p)
 ```{r}
 est_md_sim =
   estradl %>%
@@ -197,10 +206,7 @@ est_md_sim %>%
 \ As shown, the coefficient of BMI is 
 `r broom::tidy(est_md_sim) %>% filter(term =="bmi") %>% pull(estimate)`, with negative 
 sign but also with a p.value of 
-`r broom::tidy(est_md_sim) %>% filter(term =="bmi") %>% pull(p.value)`. The intercept 
-is `r broom::tidy(est_md_sim) %>% filter(term =="(Intercept)") %>% pull(estimate)` 
-, with p.value of 
-`r broom::tidy(est_md_sim) %>% filter(term =="(Intercept)") %>% pull(p.value)`.
+`r broom::tidy(est_md_sim) %>% filter(term =="bmi") %>% pull(p.value)`.
 
 2. How does the relationship between BMI and serum estradiol change after controlling for all the other risk factors listed above? Provide the summary regression output and comment on the relationships observed for each of the predictors.(5p)
 ```{r}
@@ -219,6 +225,10 @@ est_md_all %>%
   filter(term != "(Intercept)") %>%
   mutate(
     across(-term,  ~ round(.x, 4)),
+    pn = case_when(
+      estimate <0 ~ "negative",
+      estimate >0 ~ "positive"
+    ),
     comment =
       str_c(
         "After controlling other factors, the mean change per unit of ",
@@ -240,7 +250,8 @@ est_md_all %>%
     
 \ On the first look of fig, we see that the regression line of estradol and bmi 
 different trend by ethnic groups. We hypothesis that there's difference in 
- relationship between BMI and serum estradiol by ethnicity.
+ relationship between BMI and serum estradiol by ethnicity, that is ethinicity is
+  a confounder.
  
 \ Then we test this hypothesis with ANOVA.
 
@@ -269,9 +280,13 @@ anova(est_md_sim,est_md_eth)
 \ At 95% confidence level, because the F statistics of 
 `r anova(est_md_sim,est_md_eth) %>% broom::tidy() %>% drop_na() %>% pull(statistic)` 
 is greater than the critical value of `r qf(0.95,1,207)`, we reject the null 
-hypothesis and conclude that the coefficient of ethnic is not equal to 0.
+hypothesis and conclude that the coefficient of ethnic is a confounder.
 
-    b) Based on your response in part 3-a), take additional steps to quantify the relationship between BMI and serum estradiol by ethnicity. Comment on your findings.(2.5p)
+    b) Based on your response in part 3-a), take additional steps to quantify 
+    
+    the relationship between BMI and serum estradiol by ethnicity. Comment on 
+    
+    your findings.(2.5p)
     
 \ Also from the fig, we saw that the regression line is crossing at some point in 
 the range of BMI, we hypothesis that there the BMI might have interaction with 
