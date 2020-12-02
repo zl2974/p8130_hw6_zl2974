@@ -61,7 +61,8 @@ pat_sat %>%
   )
 ```
 
-Satisfaction is negative correlated with all other variable, and other variables are postively correlated with each others.
+Satisfaction is negative correlated with all other variable, and other variables are postively correlated with each others. The correlation of anxiety and severity is 
+67%, there's may be collinearity if introducing both variable into model.
 
 2. Fit a multiple regression model including all three predictors and test whether at least one of these variables is significant. State the hypotheses, test-statistic, decision rule and conclusion. (3p)
 
@@ -146,7 +147,7 @@ pat_sat_noanx =
 anova(pat_sat_noanx,pat_sat_mmd)
 ```
 
-\ At 95% confidence level, we can't reject the null hypothesis and conclude that 
+\ At 95% confidence level, with F statistics of 3,6 less than `r qf(0.95,1,42)`, we can't reject the null hypothesis and conclude that 
 the model include _anxiety_ is not superior or different from model without _anxiety_.
 
     b) How areR2/R2-adjusted impacted by the action that youtook in part 5-a)? (1.5p)
@@ -164,7 +165,10 @@ tibble(
 ) %>% 
   knitr::kable()
 ```
-    
+\ We see that the Coefficient of Determine decrease from the full model to the 
+smaller model, because of the sum of square error increaseing as we take out one 
+predictor. But the difference is less than 6%. As much as $R^2$, the Adjusted $R^2$ 
+also decreases and less than 6% difference.
 
 # Problem 2(15p)
 
@@ -222,7 +226,7 @@ est_md_all %>%
 ```{r results="asis"}
 est_md_all %>%
   broom::tidy() %>%
-  filter(term != "(Intercept)") %>%
+  filter(!term  %in% c("(Intercept)","ethnicCaucasian")) %>%
   mutate(
     across(-term,  ~ round(.x, 4)),
     pn = case_when(
@@ -243,6 +247,10 @@ est_md_all %>%
   paste(collapse = "; \newline ") %>% 
   first()
 ```
+Caucasian group have a positive coefficient of 
+`r broom::tidy(est_md_all) %>% filter(term =="ethnicCaucasian") %>% pull(estimate)`
+ compared to the African American groups, with a p.value of 
+ `r broom::tidy(est_md_all) %>% filter(term =="ethnicCaucasian") %>% pull(p.value)`
 
 3. Now focus only the relationship between BMI and serum estradiol by ethnicity. Is there any evidence that these relationships vary for African American and Caucasian women? 
     
@@ -289,7 +297,7 @@ hypothesis and conclude that the coefficient of ethnic is a confounder.
     your findings.(2.5p)
     
 \ Also from the fig, we saw that the regression line is crossing at some point in 
-the range of BMI, we hypothesis that there the BMI might have interaction with 
+the range of BMI, we hypothesis that the BMI might have interaction with 
 ethnic groups.
 
 ```{r interaction}
@@ -350,14 +358,46 @@ stratum %>%
 ```
 
 
+As we saw in problem 1, there's outlier in the observation, Using the Cook-leverge 
+plot, we saw one observation with high leverge, and 3 observations close the 0.5 
+Cook's distance. After taking out these outliers,
 
 
-```{r outlier, eval = F}
+```{r outlier}
 cat("Model filterred possible outlier")
+estradl %>% 
+    filter(ethnic == "Caucasian",
+           estradl<150) %>% 
+    lm(estradl~bmi,data = .) %>% 
+    plot(which = 5)
+
 estradl %>% 
     filter(ethnic == "Caucasian",
            estradl<150) %>% 
     lm(estradl~bmi,data = .) %>% 
     broom::tidy() %>% 
     knitr::kable()
+```
+```{r results="asis"}
+estradl %>% 
+    filter(ethnic == "Caucasian",
+           estradl<150) %>% 
+    lm(estradl~bmi,data = .) %>% 
+  broom::tidy() %>% 
+  janitor::clean_names() %>% 
+  filter(term == "bmi") %>% 
+  mutate(
+    across(where(is.numeric), ~round(.x,4)),
+    comment = str_c(
+      "For ",
+      "Caucasian",
+      " group, the mean of change in estradol per unit bmi is ",
+      estimate ,
+      " with a p.value of ",
+      p_value
+    )
+  ) %>%
+  pull(comment) %>%
+  paste(collapse = "; \newline ") %>%
+  first()
 ```
