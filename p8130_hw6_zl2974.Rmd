@@ -40,7 +40,8 @@ estradl =
   janitor::clean_names() %>%
   mutate(ethnic =
            case_when(ethnic == 1 ~ "African American",
-                     ethnic == 0 ~ "Caucasian"))
+                     ethnic == 0 ~ "Caucasian"),
+         ethnic = forcats::fct_relevel(ethnic,"Caucasian"))
 ```
 
 
@@ -110,7 +111,7 @@ tibble(
 `r broom::confint_tidy(pat_sat_mmd) %>% slice(3) %>% round(2)`),
 we interpret as: at 95% confidence level, the mean 
 change of satisfaction give all the same except for disease severity per unit is 
-somewhere within this interval, and 0 is included.
+somewhere within this interval, and 0 is included,adjusted for all other predictors.
 
 4. Obtain an interval estimate for a new patient’s satisfaction with the following characteristics:Age=35, Severity=42, Anxiety=2.1. Interpret the interval. (2p)
 
@@ -226,7 +227,7 @@ est_md_all %>%
 ```{r results="asis"}
 est_md_all %>%
   broom::tidy() %>%
-  filter(!term  %in% c("(Intercept)","ethnicCaucasian")) %>%
+  filter(!term  %in% c("(Intercept)","ethnicAfrican American")) %>%
   mutate(
     across(-term,  ~ round(.x, 4)),
     pn = case_when(
@@ -247,10 +248,11 @@ est_md_all %>%
   paste(collapse = "; \newline ") %>% 
   first()
 ```
-Caucasian group have a positive coefficient of 
-`r broom::tidy(est_md_all) %>% filter(term =="ethnicCaucasian") %>% pull(estimate)`
- compared to the African American groups, with a p.value of 
- `r broom::tidy(est_md_all) %>% filter(term =="ethnicCaucasian") %>% pull(p.value)`
+
+After adjusting all other factors, African American group have a nagative coefficient of 
+`r broom::tidy(est_md_all) %>% filter(term =="ethnicAfrican American") %>% pull(estimate)`
+ compared to the Caucasian groups, with a p.value of 
+ `r broom::tidy(est_md_all) %>% filter(term =="ethnicAfrican American") %>% pull(p.value)`
 
 3. Now focus only the relationship between BMI and serum estradiol by ethnicity. Is there any evidence that these relationships vary for African American and Caucasian women? 
     
